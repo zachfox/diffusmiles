@@ -1,0 +1,34 @@
+2023-01-24 08:57:52.942492: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2023-01-24 08:57:52.942491: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2023-01-24 08:59:16.868098: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /software/dev_tools/swtree/cs400_centos7.2_pe2016-08/cuda/11.2/centos7.8_binary/lib64:/software/dev_tools/swtree/cs400_centos7.2_pe2016-08/gcc/6.3.0/centos7.5_gnu4.8.5/lib:/software/dev_tools/swtree/cs400_centos7.2_pe2016-08/gcc/6.3.0/centos7.5_gnu4.8.5/lib64
+2023-01-24 08:59:16.868087: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /software/dev_tools/swtree/cs400_centos7.2_pe2016-08/cuda/11.2/centos7.8_binary/lib64:/software/dev_tools/swtree/cs400_centos7.2_pe2016-08/gcc/6.3.0/centos7.5_gnu4.8.5/lib:/software/dev_tools/swtree/cs400_centos7.2_pe2016-08/gcc/6.3.0/centos7.5_gnu4.8.5/lib64
+2023-01-24 08:59:16.889020: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /software/dev_tools/swtree/cs400_centos7.2_pe2016-08/cuda/11.2/centos7.8_binary/lib64:/software/dev_tools/swtree/cs400_centos7.2_pe2016-08/gcc/6.3.0/centos7.5_gnu4.8.5/lib:/software/dev_tools/swtree/cs400_centos7.2_pe2016-08/gcc/6.3.0/centos7.5_gnu4.8.5/lib64
+2023-01-24 08:59:16.889100: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+2023-01-24 08:59:16.889020: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /software/dev_tools/swtree/cs400_centos7.2_pe2016-08/cuda/11.2/centos7.8_binary/lib64:/software/dev_tools/swtree/cs400_centos7.2_pe2016-08/gcc/6.3.0/centos7.5_gnu4.8.5/lib:/software/dev_tools/swtree/cs400_centos7.2_pe2016-08/gcc/6.3.0/centos7.5_gnu4.8.5/lib64
+2023-01-24 08:59:16.889493: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+WARNING:absl:options.experimental_threading is deprecated. Use options.threading instead.
+WARNING:absl:options.experimental_threading is deprecated. Use options.threading instead.
+WARNING:absl:options.experimental_threading is deprecated. Use options.threading instead.
+WARNING:absl:options.experimental_threading is deprecated. Use options.threading instead.
+2023-01-24 09:03:10.527441: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2023-01-24 09:03:10.527452: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2023-01-24 09:03:16.783696: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1613] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 15051 MB memory:  -> device: 0, name: Tesla P100-PCIE-16GB, pci bus id: 0000:05:00.0, compute capability: 6.0
+2023-01-24 09:03:16.934487: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1613] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 15051 MB memory:  -> device: 0, name: Tesla P100-PCIE-16GB, pci bus id: 0000:81:00.0, compute capability: 6.0
+WARNING:absl:options.experimental_threading is deprecated. Use options.threading instead.
+WARNING:absl:options.experimental_threading is deprecated. Use options.threading instead.
+WARNING:absl:options.experimental_threading is deprecated. Use options.threading instead.
+WARNING:absl:options.experimental_threading is deprecated. Use options.threading instead.
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "/lustre/or-scratch/cades-ccsd/z6f/generative-discrete-state-diffusion-models/linear_nois_train.py", line 130, in <module>
+  File "/lustre/or-scratch/cades-ccsd/z6f/generative-discrete-state-diffusion-models/linear_nois_train.py", line 130, in <module>
+    cumSolArrayGPU = torch.from_numpy(cumSolArray).to(config.device)
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 502.00 MiB (GPU 0; 15.90 GiB total capacity; 0 bytes already allocated; 499.75 MiB free; 0 bytes reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+    cumSolArrayGPU = torch.from_numpy(cumSolArray).to(config.device)
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 502.00 MiB (GPU 0; 15.90 GiB total capacity; 0 bytes already allocated; 499.75 MiB free; 0 bytes reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+srun: error: or-condo-g16: task 1: Exited with exit code 1
+srun: error: or-condo-g16: task 0: Exited with exit code 1

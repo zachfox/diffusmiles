@@ -1,0 +1,43 @@
+#!/bin/bash
+
+#BSUB -nnodes 1
+#BSUB -W 1:00
+#BSUB -P MED106
+#BSUB -alloc_flags "smt4 nvme"
+#BSUB -J gdb9_75
+#BSUB -o logs/%J.log
+#BSUB -q debug
+
+set +x
+
+# load modules and conda
+module load open-ce/1.4.0-py38-0
+module load gcc
+conda activate /gpfs/alpine/world-shared/med106/foxzr/conda_envs/bkout
+
+# env
+export TORCH_EXTENSIONS_DIR=/gpfs/alpine/world-shared/med106/foxzr/torch_extensions
+
+# run
+jsrun -n 1 -r 1 -g 1 -a 1 -c 1 python blackout_utils.py 
+
+# GDB9 data
+# DATA='./data/gdb9_smiles.tsv'
+# OUTDIR='./results/gdb9_100k/'
+
+# TOP data
+# DATA='./data/top_drug_synth_smiles.tsv'
+# OUTDIR='./results/top_100k/'
+
+# Mutation rate
+# MUT_RATE=0.75
+
+# fixed run
+# jsrun -n 1 -r 1 -g 6 -a 6 -c 42 python training_lm.py --generator_only --mutation_parameter=$MUT_RATE --epochs=5 --data_file=$DATA --output_directory=$OUTDIR --config='./config/default_lm_1000N_0.json' --run_id="fixed_opt_$MUT_RATE" --use_mpi 
+
+# adaptive run
+# jsrun -n 1 -r 1 -g 6 -a 6 -c 42 python training_lm.py --generator_only --mlm_loss --mutation_parameter=$MUT_RATE --epochs=5 --data_file=$DATA --output_directory=$OUTDIR --config='./config/default_lm_1000N_0.json' --run_id="adaptive_opt_$MUT_RATE" --use_mpi 
+
+# random run
+# jsrun -n 1 -r 1 -g 6 -a 6 -c 42 python training_lm.py --generator_only --mutation_parameter=$MUT_RATE --epochs=5 --data_file=$DATA --output_directory=$OUTDIR --config='./config/no_select_lm_1000N_0.json' --run_id="random_$MUT_RATE" --use_mpi --no_selection
+

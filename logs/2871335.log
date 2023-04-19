@@ -1,0 +1,37 @@
+/sw/summit/open-ce/anaconda-base/envs/open-ce-1.4.0-py38-0/etc/conda/deactivate.d/deactivate-tensorflow-base.sh: line 33: python: command not found
+/sw/summit/open-ce/anaconda-base/envs/open-ce-1.4.0-py38-0/etc/conda/deactivate.d/deactivate-tensorflow-base.sh: line 34: python: command not found
+
+Lmod is automatically replacing "xl/16.1.1-10" with "gcc/9.1.0".
+
+
+Due to MODULEPATH changes, the following have been reloaded:
+  1) spectrum-mpi/10.4.0.3-20210112
+
+Warning: OMP_NUM_THREADS=16 is greater than available PU's
+CC(C)(C)C
+
+{'input_ids': [2, 22, 41, 6, 22, 7, 6, 22, 7, 22, 3], 'token_type_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'attention_mask': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}
+Traceback (most recent call last):
+  File "blackout_utils.py", line 102, in <module>
+    out = get_binomial_corrupter()
+  File "blackout_utils.py", line 52, in get_binomial_corrupter
+    schedule, noise_cdf, reverse_rates, observation_times = generate_binomial_corrupter(t_end, num_times, max_state)
+  File "blackout_utils.py", line 84, in generate_binomial_corrupter
+    return schedule, cdfs, reverse_rates, observation_times
+NameError: name 'schedule' is not defined
+
+------------------------------------------------------------
+Sender: LSF System <lsfadmin@batch5>
+Subject: Job 2871335: <gdb9_75> in cluster <summit> Exited
+
+Job <gdb9_75> was submitted from host <login2> by user <zachfox> in cluster <summit> at Mon Apr 17 11:40:21 2023
+Job was executed on host(s) <1*batch5>, in queue <debug>, as user <zachfox> in cluster <summit> at Mon Apr 17 11:41:06 2023
+                            <42*h12n09>
+</ccs/home/zachfox> was used as the home directory.
+</gpfs/alpine/world-shared/med106/foxzr/discrete-diffusion> was used as the working directory.
+Started at Mon Apr 17 11:41:06 2023
+Terminated at Mon Apr 17 11:42:50 2023
+Results reported at Mon Apr 17 11:42:50 2023
+
+The output (if any) is above this job summary.
+
