@@ -12,6 +12,6 @@ class SMILESDataset(Dataset):
         # Here, you can preprocess your data if needed and return a tuple (or dictionary) containing the sample and its label
         sample = self.data[index]
         label = 0  # Example label
-        return sample, label
+        return sample
 
 

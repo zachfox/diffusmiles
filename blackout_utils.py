@@ -1,5 +1,6 @@
 import sys
-sys.path.append('../scorenet') # not very portab
+# sys.path.append('../scorenet') # not very portab
+sys.path.append('../score_sde') # not very portab
 
 import numpy as np
 import json
@@ -15,7 +16,7 @@ import torch
 from torch.utils.data import DataLoader
 # from models import ncsnpp
 from simple_model import Net, ConvNet
-from configs.vp import cifar10_ncsnpp_continuous as configLoader
+# from configs.vp import cifar10_ncsnpp_continuous as configLoader
 from dataloader import SMILESDataset
 from torch.utils.tensorboard import SummaryWriter
 
@@ -54,13 +55,16 @@ def get_tokenizer(tokenizer_path='/gpfs/alpine/world-shared/med106/blnchrd/model
 
 def get_binomial_corrupter(cached_schedule=None, t_end=15, num_times=1000, max_state=64):
     if cached_schedule is not None:
-        schedule = np.load(cached_schedule, allow_pickle=True)
+        schedule = dict(np.load(cached_schedule, allow_pickle=True))
+        schedule['noise_cdf'] = torch.Tensor(schedule['noise_cdf'])
+        schedule['reverse_rates'] = torch.Tensor(schedule['reverse_rates'])
+        schedule['observation_times'] = torch.Tensor(schedule['observation_times'])
     else:
         noise_cdf, reverse_rates, observation_times = generate_binomial_corrupter(t_end, num_times, max_state)
         schedule = {}
-        schedule['noise_cdf'] = noise_cdf
-        schedule['reverse_rates'] = reverse_rates
-        schedule['observation_times'] = observation_times   
+        schedule['noise_cdf'] = torch.Tensor(noise_cdf)
+        schedule['reverse_rates'] = torch.Tensor(reverse_rates)
+        schedule['observation_times'] = torch.Tensor(observation_times)
         schedule['num_times'] = num_times
         schedule['max_state'] = max_state
     
@@ -98,7 +102,7 @@ def generate_binomial_corrupter(t_end, num_times, max_state):
         return cdfs, reverse_rates, observation_times
 
 def noisify_data(batch, noise_cdf, reverse_rates, observation_times, num_times, max_state):
-    batch = torch.Tensor(batch)
+    batch = batch.squeeze(1)
     with torch.no_grad():
         batch_size, seq_length = batch.shape
         batch = batch
@@ -114,19 +118,19 @@ def noisify_data(batch, noise_cdf, reverse_rates, observation_times, num_times, 
         corrupted_batch =  torch.argmax((u < cdf_batch).long(), axis=-1).int()
         reverse_rates_batch = reverse_rates 
         corrupted_batch =  torch.argmax((u < cdf_batch).long(), axis=-1).int()
-        batch_indices = batch*max_state*num_times + corrupted_batch*num_times + sample_times
+        # batch_indices = batch*max_state*num_times + corrupted_batch*num_times + sample_times
         batch_birth_rates = reverse_rates[batch.long(), corrupted_batch.long(), sample_times.long()]   
-        return corrupted_batch, batch_birth_rates, sample_times
+        return corrupted_batch.unsqueeze(1), batch_birth_rates, sample_times
 
 def train_model(config, training_loader, validation_loader, schedule):
-    score_model = Net(schedule['max_state'])
-    score_fun = Net(schedule['max_state'])
+    score_model = ConvNet(schedule['max_state'])
+    score_fun = ConvNet(schedule['max_state'])
 
     # setup model based on config
     # score_model = mutils.create_model(config)
     # score_fn = mutils.get_model_fn(score_model, train=True)
    
-    optimizer = torch.optim.Adam(score_model.parameters(), lr=config.optim.lr) 
+    optimizer = torch.optim.Adam(score_model.parameters(), lr=1e-4) 
 
     # run the training loop 
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -188,36 +192,52 @@ def train_epoch(model, epoch_index, tb_writer, optimizer, training_loader, sched
     return last_loss
 
 def loss_fn(model, data, schedule): 
-    print('********')
-    print(data)
     data, data_dX, sample_times = noisify_data(data, **schedule)
-    y = relu(model(data, sample_times))
+    y = model(data, sample_times)
     loss = torch.mean(schedule['weights'][sample_times.long()]*(y - data_dX*torch.log(y)))
     return loss
 
+def retokenize(unique, data):
+    for new_token,old_token in enumerate(unique):
+        data[data==old_token]=new_token
+    return data    
+
 if __name__=='__main__':
     # test loading scorenet
-    config = get_config()
+   #  config = get_config()
 
     # test loading data
-    data = load_data()
-
+    data = load_data('../etc/data/gdb9_smiles.tsv')
     # load tokenizer 
-    tokenizer = get_tokenizer()
+    tokenizer = get_tokenizer('../etc/tokenizers/tokenizer')
 
     # tokenize a sample 
-    datai = data[50]
-    tokenized_data_train = tokenizer(data[:1000], padding=True)
-    tokenized_data_val = tokenizer(data[1000:1200], padding=True)
+    tokenized_data_train = tokenizer(data[:1000], padding='max_length', max_length=20)
+    tokenized_data_val = tokenizer(data[1000:1200], padding='max_length', max_length=20)
+    all_data_array = np.array(tokenizer(data[:1200], padding=True)['input_ids'])
+    train_array = np.array(tokenized_data_train['input_ids'])
+    val_array = np.array(tokenized_data_val['input_ids'])
 
+    # re-tokenize by max value (for testing) 
+    unique = np.unique(all_data_array)
+    train_data = retokenize(unique, train_array)
+    val_data = retokenize(unique, val_array)
+            
+    print('max value (train): {0}'.format(np.max(tokenized_data_train['input_ids'])))
+    print('max value (val): {0}'.format(np.max(tokenized_data_val['input_ids'])))
+    
+    print('support size (train): {0}'.format(len(np.unique(tokenized_data_train['input_ids']))))
+    print('support size (val): {0}'.format(len(np.unique(tokenized_data_val['input_ids']))))
+
+    print('max value retoke (train): {0}'.format(np.max(train_data)))
+    print('max value retoke (val): {0}'.format(np.max(val_data)))
     # get a data_loader 
-    train_dataloader = DataLoader( SMILESDataset(torch.Tensor(tokenized_data_train['input_ids']).unsqueeze(1)), batch_size=10, shuffle=True) 
-    val_dataloader = DataLoader( SMILESDataset(torch.Tensor(tokenized_data_val['input_ids']).unsqueeze(1)), batch_size=32, shuffle=True) 
+    train_dataloader = DataLoader( SMILESDataset(torch.Tensor(train_data).unsqueeze(1)), batch_size=32, shuffle=True) 
+    val_dataloader = DataLoader( SMILESDataset(torch.Tensor(val_data).unsqueeze(1)), batch_size=32, shuffle=True) 
 
     # get the schedule 
-    # schedule = get_binomial_corrupter('schedules/binomial_corrupter_files.npz')
-    schedule = get_binomial_corrupter()
-    print(schedule)
+    schedule = get_binomial_corrupter('schedules/binomial_corrupter_files.npz')
+    # schedule = get_binomial_corrupter(max_state=420)
 
     # try the simple model     
     seq_len = len(tokenized_data_train['input_ids'][0])
@@ -225,5 +245,6 @@ if __name__=='__main__':
     model_in = torch.Tensor(tokenized_data_train['input_ids']).unsqueeze(1)
     print(model(model_in,1))
 
+    config = []
     train_model(config, train_dataloader, val_dataloader, schedule)
 
