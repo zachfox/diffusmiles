@@ -4,7 +4,6 @@ import torch.nn.functional as F
 
 
 class Net(nn.Module):
-
     def __init__(self, max_state):
         super(Net, self).__init__()
         self.conv1 = nn.Conv1d(1, 6, 1)
@@ -33,15 +32,23 @@ class ConvNet(nn.Module):
         super(ConvNet, self).__init__()
         # self.linear = nn.Linear(1, hidden_size)
         self.conv1d_1 = nn.Conv1d(1, hidden_size, kernel_size)
-        self.conv1d_2 = nn.Conv1d(hidden_size, output_size, kernel_size)
-        
+        self.conv1d_2 = nn.Conv1d(hidden_size, hidden_size, kernel_size)
+        self.linear = nn.Linear(output_size-kernel_size, output_size)
+        self.last = nn.Linear(hidden_size, 1 ) 
+
     def forward(self, x, t):
         x = self.conv1d_1(x)
         x = nn.functional.relu(x)
         x = self.conv1d_2(x)
         x = nn.functional.relu(x)
+        x = self.linear(x)
+        x = nn.functional.relu(x)
+        x = torch.transpose(x,1,2)
+        x = self.last(x)
+        x = torch.transpose(x,1,2)
+        x = nn.functional.softplus(x)
         # incorporate time here somehow...
-        x = F.softmax(x)
-        x = torch.argmax(x,dim=2)
+        # x = F.softmax(x,dim=1)
+        # x = torch.argmax(x,dim=1)
         return x
 

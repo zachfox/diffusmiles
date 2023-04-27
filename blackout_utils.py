@@ -113,18 +113,20 @@ def noisify_data(batch, noise_cdf, reverse_rates, observation_times, num_times, 
         sample_times = torch.from_numpy(np.random.choice(num_times,
                                                          size=(batch_size,1),
                                                           p=sampling_prob))
+
         cdf_batch = noise_cdf[(sample_times+1).long(),:,batch.long()]
         u = torch.FloatTensor(batch_size, seq_length, 1).uniform_()
         corrupted_batch =  torch.argmax((u < cdf_batch).long(), axis=-1).int()
         reverse_rates_batch = reverse_rates 
-        corrupted_batch =  torch.argmax((u < cdf_batch).long(), axis=-1).int()
+        corrupted_batch = torch.argmax((u < cdf_batch).long(), axis=-1).int()
         # batch_indices = batch*max_state*num_times + corrupted_batch*num_times + sample_times
         batch_birth_rates = reverse_rates[batch.long(), corrupted_batch.long(), sample_times.long()]   
         return corrupted_batch.unsqueeze(1), batch_birth_rates, sample_times
 
 def train_model(config, training_loader, validation_loader, schedule):
-    score_model = ConvNet(schedule['max_state'])
-    score_fun = ConvNet(schedule['max_state'])
+    seq_length = 20
+    score_model = ConvNet(seq_length, schedule['max_state'])
+    score_fun = ConvNet(seq_length, schedule['max_state'])
 
     # setup model based on config
     # score_model = mutils.create_model(config)
@@ -169,6 +171,8 @@ def train_model(config, training_loader, validation_loader, schedule):
 def train_epoch(model, epoch_index, tb_writer, optimizer, training_loader, schedule):
     last_loss = 0.
     running_loss = 0.
+    batch_size = 32
+    nbatch = int(len(training_loader.dataset)/batch_size)
     for i, batch in enumerate(training_loader):
         # zero gradients
         optimizer.zero_grad()
@@ -182,19 +186,20 @@ def train_epoch(model, epoch_index, tb_writer, optimizer, training_loader, sched
 
         # Gather data and report (within this epoch)
         running_loss += loss.item()
-        if i % 1000 == 999:
-            last_loss = running_loss / 1000 # loss per batch
+        if i % batch_size  == batch_size-1:
+            last_loss = running_loss / batch_size # loss per batch
             print('  batch {} loss: {}'.format(i + 1, last_loss))
             tb_x = epoch_index * len(training_loader) + i + 1
             tb_writer.add_scalar('Loss/train', last_loss, tb_x)
             running_loss = 0.
-
     return last_loss
 
 def loss_fn(model, data, schedule): 
     data, data_dX, sample_times = noisify_data(data, **schedule)
-    y = model(data, sample_times)
-    loss = torch.mean(schedule['weights'][sample_times.long()]*(y - data_dX*torch.log(y)))
+    y = model(data.float(), sample_times)
+    # loss = torch.mean(schedule['weights'][sample_times.long()]*(y - data_dX*torch.log(y)))
+    eps = 1e-4 
+    loss = torch.mean(1*(y - data_dX*torch.log(y+eps)))
     return loss
 
 def retokenize(unique, data):
@@ -237,13 +242,12 @@ if __name__=='__main__':
 
     # get the schedule 
     schedule = get_binomial_corrupter('schedules/binomial_corrupter_files.npz')
-    # schedule = get_binomial_corrupter(max_state=420)
+    # schedule = get_binomial_corrupter(max_state=421)
 
     # try the simple model     
     seq_len = len(tokenized_data_train['input_ids'][0])
     model = ConvNet(seq_len, schedule['max_state'])
     model_in = torch.Tensor(tokenized_data_train['input_ids']).unsqueeze(1)
-    print(model(model_in,1))
 
     config = []
     train_model(config, train_dataloader, val_dataloader, schedule)
