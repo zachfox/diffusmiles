@@ -1,5 +1,8 @@
 *.npz
+*.swp
+model*
 schedules/*
 logs/*
 __pycache__/*
 notebooks/.ipynb_checkpoints/*
+
