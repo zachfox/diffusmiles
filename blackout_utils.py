@@ -204,8 +204,13 @@ def loss_fn(model, data, schedule):
 
 def retokenize(unique, data):
     for new_token,old_token in enumerate(unique):
-        data[data==old_token]=new_token
+        data[data==old_token] = new_token
     return data    
+
+def detokenize(unique, data):
+    for new_token, old_token in enumerate(unique):
+        data[data==new_token] = old_token
+    return data
 
 if __name__=='__main__':
     # test loading scorenet
