@@ -10,8 +10,8 @@ from scipy.stats import binom
 
 from transformers import AutoTokenizer
 from tokenizers.pre_tokenizers import Split, BertPreTokenizer, Digits, Sequence, WhitespaceSplit
-from tokenizers import Regex
-
+from tokenizers import Regex, Tokenizer
+from tokenizers.models import WordLevel
 import torch 
 from torch.utils.data import DataLoader
 # from models import ncsnpp
@@ -40,17 +40,47 @@ def get_dataloader(data, batch_size):
     return torch.utils.data.DataLoader(data, batch_size=args.batch_size, shuffle=True)
     
 def get_tokenizer(tokenizer_path='/gpfs/alpine/world-shared/med106/blnchrd/models/bert_docking_brackets/tokenizer', tokenizer_type='bert'):
-    # initialize tokenizer
     pretokenizer_dict = {
         'regex': Sequence([WhitespaceSplit(),Split(Regex(r"""(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])"""), behavior='isolated')]),
         'bert': BertPreTokenizer(),
         'bert_digits': Sequence([BertPreTokenizer(), Digits(individual_digits=True)]),
         'digits': Sequence([WhitespaceSplit(), Digits(individual_digits=True)])
     }
+    # initialize tokenizer
     with open(tokenizer_path + '/config.json', 'r') as f:
         tokenizer_config = json.load(f)
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, **tokenizer_config)
     tokenizer.backend_tokenizer.pre_tokenizer = pretokenizer_dict[tokenizer_type]
+    return tokenizer
+
+def train_tokenizer(tokenizer_type, data_path, output_directory):
+    pretokenizer_dict = {
+        'regex': Sequence([WhitespaceSplit(),Split(Regex(r"""(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])"""), behavior='isolated')]),
+        'bert': BertPreTokenizer(),
+        'bert_digits': Sequence([BertPreTokenizer(), Digits(individual_digits=True)]),
+        'digits': Sequence([WhitespaceSplit(), Digits(individual_digits=True)])
+    }
+    tokenizer_special_tokens = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"]
+    if tokenizer_type == 'regex':
+
+        tokenizer_model = WordLevel()
+        tokenizer = Tokenizer(tokenizer_model)
+        tokenizer.pre_tokenizer = pretokenizer_dict[tokenizer_type]
+
+        # train word level tokenizer
+        tokenizer.train(data_path)
+        word_level_vocab = tokenizer.get_vocab()
+
+        with open(args.output_directory + '/vocab.txt', 'w') as f:
+            for token in tokenizer_special_tokens:
+                f.write(token + '\n')
+
+            keys = list(word_level_vocab.keys())
+            values = [word_level_vocab[x] for x in keys]
+            ordered_index = np.argsort(values)
+            for index in ordered_index:
+                f.write(keys[index] + '\n')
+        tokenizer.save_model(output_directory)
     return tokenizer
 
 def get_binomial_corrupter(cached_schedule=None, t_end=15, num_times=1000, max_state=64):
@@ -141,7 +171,7 @@ def train_model(config, training_loader, validation_loader, schedule):
 
     best_vloss = 1_000_000.
 
-    for epoch in range(2):
+    for epoch in range(20):
         print('EPOCH {}:'.format(epoch + 1))
 
         # Make sure gradient tracking is on, and do a pass over the data
@@ -218,32 +248,29 @@ if __name__=='__main__':
 
     # test loading data
     data = load_data('../etc/data/gdb9_smiles.tsv')
+
+    # train tokenizer (not working)
+    #  tokenizer = train_tokenizer('regex', '../etc/data/gdb9_smiles_edit.txt', '../etc/tokenizers/regex/')
+
     # load tokenizer 
-    tokenizer = get_tokenizer('../etc/tokenizers/tokenizer')
+    tokenizer = get_tokenizer('../etc/tokenizers/regex')
 
     # tokenize a sample 
-    tokenized_data_train = tokenizer(data[:1000], padding='max_length', max_length=20)
-    tokenized_data_val = tokenizer(data[1000:1200], padding='max_length', max_length=20)
-    all_data_array = np.array(tokenizer(data[:1200], padding=True)['input_ids'])
+    tokenized_data_train = tokenizer(data[:10000], padding='max_length', max_length=20)
+    tokenized_data_val = tokenizer(data[10000:12000], padding='max_length', max_length=20)
+    all_data_array = np.array(tokenizer(data[:12000], padding=True)['input_ids'])
     train_array = np.array(tokenized_data_train['input_ids'])
     val_array = np.array(tokenized_data_val['input_ids'])
-
-    # re-tokenize by max value (for testing) 
-    unique = np.unique(all_data_array)
-    train_data = retokenize(unique, train_array)
-    val_data = retokenize(unique, val_array)
             
     print('max value (train): {0}'.format(np.max(tokenized_data_train['input_ids'])))
-    print('max value (val): {0}'.format(np.max(tokenized_data_val['input_ids'])))
+    # print('max value (val): {0}'.format(np.max(tokenized_data_val['input_ids'])))
     
     print('support size (train): {0}'.format(len(np.unique(tokenized_data_train['input_ids']))))
-    print('support size (val): {0}'.format(len(np.unique(tokenized_data_val['input_ids']))))
+    # print('support size (val): {0}'.format(len(np.unique(tokenized_data_val['input_ids']))))
 
-    print('max value retoke (train): {0}'.format(np.max(train_data)))
-    print('max value retoke (val): {0}'.format(np.max(val_data)))
     # get a data_loader 
-    train_dataloader = DataLoader( SMILESDataset(torch.Tensor(train_data).unsqueeze(1)), batch_size=32, shuffle=True) 
-    val_dataloader = DataLoader( SMILESDataset(torch.Tensor(val_data).unsqueeze(1)), batch_size=32, shuffle=True) 
+    train_dataloader = DataLoader( SMILESDataset(torch.Tensor(train_array).unsqueeze(1)), batch_size=32, shuffle=True) 
+    val_dataloader = DataLoader( SMILESDataset(torch.Tensor(val_array).unsqueeze(1)), batch_size=32, shuffle=True) 
 
     # get the schedule 
     schedule = get_binomial_corrupter('schedules/binomial_corrupter_files.npz')
