@@ -2,6 +2,7 @@ import sys
 # sys.path.append('../scorenet') # not very portab
 sys.path.append('../score_sde') # not very portab
 
+import os
 import numpy as np
 import json
 from datetime import datetime
@@ -127,7 +128,7 @@ def generate_binomial_corrupter(t_end, num_times, max_state):
             for j in range(max_state):
                 cdfs[i,:,j] = np.cumsum(pmfs[i,:,j] )    
                 
-        np.savez('schedules/binomial_corrupter_files.npz', noise_cdf=cdfs, reverse_rates=reverse_rates,
+        np.savez('../schedules/binomial_corrupter_files.npz', noise_cdf=cdfs, reverse_rates=reverse_rates,
                   observation_times=observation_times, num_times=num_times, max_state=max_state)
         return cdfs, reverse_rates, observation_times
 
@@ -166,12 +167,13 @@ def train_model(config, training_loader, validation_loader, schedule):
 
     # run the training loop 
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    model_path = '../models/{0}'.format(timestamp)
+    os.mkdir(model_path)
     writer = SummaryWriter('logs/diffrun_{}'.format(timestamp))
     epoch_number = 0
 
     best_vloss = 1_000_000.
-
-    for epoch in range(20):
+    for epoch in range(200):
         print('EPOCH {}:'.format(epoch + 1))
 
         # Make sure gradient tracking is on, and do a pass over the data
@@ -195,8 +197,9 @@ def train_model(config, training_loader, validation_loader, schedule):
         # Track best performance, and save the model's state
         if avg_vloss < best_vloss:
             best_vloss = avg_vloss
-            model_path = 'model_{}_{}'.format(timestamp, epoch)
-            torch.save(model.state_dict(), model_path)
+            model_path_now = os.path.join(model_path,'model_{0}'.format(epoch))
+            torch.save(score_model.state_dict(), model_path_now)
+    return score_model
 
 def train_epoch(model, epoch_index, tb_writer, optimizer, training_loader, schedule):
     last_loss = 0.
@@ -242,28 +245,49 @@ def detokenize(unique, data):
         data[data==new_token] = old_token
     return data
 
-if __name__=='__main__':
+def generate_molecule(model, schedule, store=False):
+    molecule = torch.zeros(20)
+    max_state = schedule['max_state']
+    times = schedule['observation_times']
+    if store:
+        all_molecules = []
+    for k in reversed(range(1,len(times))):
+        # predict 
+        delta_im = model(molecule.unsqueeze(0).unsqueeze(1), times[k].unsqueeze(0).unsqueeze(1))
+        for j in range(delta_im.shape[2]):
+            weight = (np.exp(-times[k-1]) - np.exp(-times[k]))/(1-np.exp(-times[k]))
+            n = np.clip(delta_im[0,0,j].detach().numpy(),0,np.max([0,max_state-molecule[j].detach().numpy()]))
+            data = binom.rvs(int(np.round(n)), weight)
+            print(molecule, data, int(np.round(n)), weight)
+            molecule[j] =  molecule[j] + data
+        if store:
+            all_molecules.append(molecule.detach().numpy())
+    if store: 
+        return molecule, all_molecules
+    else:
+        return molecule
+ 
+def main(): 
     # test loading scorenet
    #  config = get_config()
-
     # test loading data
-    data = load_data('../etc/data/gdb9_smiles.tsv')
+    data = load_data('../../etc/data/gdb9_smiles.tsv')
 
     # train tokenizer (not working)
     #  tokenizer = train_tokenizer('regex', '../etc/data/gdb9_smiles_edit.txt', '../etc/tokenizers/regex/')
 
     # load tokenizer 
-    tokenizer = get_tokenizer('../etc/tokenizers/regex')
+    tokenizer = get_tokenizer('../../etc/tokenizers/regex')
 
     # tokenize a sample 
-    tokenized_data_train = tokenizer(data[:10000], padding='max_length', max_length=20)
-    tokenized_data_val = tokenizer(data[10000:12000], padding='max_length', max_length=20)
-    all_data_array = np.array(tokenizer(data[:12000], padding=True)['input_ids'])
+    tokenized_data_train = tokenizer(data[:1000], padding='max_length', max_length=20)
+    tokenized_data_val = tokenizer(data[1000:1200], padding='max_length', max_length=20)
+    all_data_array = np.array(tokenizer(data[:1200], padding=True)['input_ids'])
     train_array = np.array(tokenized_data_train['input_ids'])
     val_array = np.array(tokenized_data_val['input_ids'])
             
     print('max value (train): {0}'.format(np.max(tokenized_data_train['input_ids'])))
-    # print('max value (val): {0}'.format(np.max(tokenized_data_val['input_ids'])))
+    print('max value (val): {0}'.format(np.max(tokenized_data_val['input_ids'])))
     
     print('support size (train): {0}'.format(len(np.unique(tokenized_data_train['input_ids']))))
     # print('support size (val): {0}'.format(len(np.unique(tokenized_data_val['input_ids']))))
@@ -273,14 +297,18 @@ if __name__=='__main__':
     val_dataloader = DataLoader( SMILESDataset(torch.Tensor(val_array).unsqueeze(1)), batch_size=32, shuffle=True) 
 
     # get the schedule 
-    schedule = get_binomial_corrupter('schedules/binomial_corrupter_files.npz')
-    # schedule = get_binomial_corrupter(max_state=421)
+    # schedule = get_binomial_corrupter('schedules/binomial_corrupter_files.npz')
+    schedule = get_binomial_corrupter(max_state=75)
 
     # try the simple model     
     seq_len = len(tokenized_data_train['input_ids'][0])
     model = ConvNet(seq_len, schedule['max_state'])
-    model_in = torch.Tensor(tokenized_data_train['input_ids']).unsqueeze(1)
+    model_in = torch.Tensor(train_array[:10,:]).unsqueeze(1)
+    # model(model_in, torch.randint(1,100,size=(model_in.shape[0],1)))
 
     config = []
-    train_model(config, train_dataloader, val_dataloader, schedule)
+    model = train_model(config, train_dataloader, val_dataloader, schedule)
+    return model, train_dataloader, val_dataloader
 
+if __name__=='__main__':
+    main()

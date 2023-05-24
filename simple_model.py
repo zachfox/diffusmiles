@@ -33,7 +33,7 @@ class ConvNet(nn.Module):
         # self.linear = nn.Linear(1, hidden_size)
         self.conv1d_1 = nn.Conv1d(1, hidden_size, kernel_size)
         self.conv1d_2 = nn.Conv1d(hidden_size, hidden_size, kernel_size)
-        self.linear = nn.Linear(output_size-kernel_size, output_size)
+        self.linear = nn.Linear(2*(output_size-kernel_size), output_size)
         self.last = nn.Linear(hidden_size, 1 ) 
 
     def forward(self, x, t):
@@ -41,13 +41,13 @@ class ConvNet(nn.Module):
         x = nn.functional.relu(x)
         x = self.conv1d_2(x)
         x = nn.functional.relu(x)
+        x = torch.cat((x,t.unsqueeze(2)*torch.ones(*x.shape)),2)
         x = self.linear(x)
         x = nn.functional.relu(x)
         x = torch.transpose(x,1,2)
         x = self.last(x)
         x = torch.transpose(x,1,2)
         x = nn.functional.softplus(x)
-        # incorporate time here somehow...
         # x = F.softmax(x,dim=1)
         # x = torch.argmax(x,dim=1)
         return x
