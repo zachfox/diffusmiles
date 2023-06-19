@@ -141,23 +141,22 @@ def noisify_data(batch, noise_cdf, reverse_rates, observation_times, num_times, 
         t = np.copy(observation_times)
         sampling_prob = np.clip( np.exp(-t)*(1.-np.exp(-t)), offset, np.inf)
         sampling_prob = sampling_prob/np.sum(sampling_prob)
-        sample_times = torch.from_numpy(np.random.choice(num_times,
+        sample_time_inds = torch.from_numpy(np.random.choice(num_times,
                                                          size=(batch_size,1),
                                                           p=sampling_prob))
 
-        cdf_batch = noise_cdf[(sample_times+1).long(),:,batch.long()]
+        cdf_batch = noise_cdf[(sample_time_inds+1).long(),:,batch.long()]
         u = torch.FloatTensor(batch_size, seq_length, 1).uniform_()
         corrupted_batch =  torch.argmax((u < cdf_batch).long(), axis=-1).int()
         reverse_rates_batch = reverse_rates 
         corrupted_batch = torch.argmax((u < cdf_batch).long(), axis=-1).int()
         # batch_indices = batch*max_state*num_times + corrupted_batch*num_times + sample_times
-        batch_birth_rates = reverse_rates[batch.long(), corrupted_batch.long(), sample_times.long()]   
-        return corrupted_batch.unsqueeze(1), batch_birth_rates, sample_times
+        batch_birth_rates = reverse_rates[batch.long(), corrupted_batch.long(), sample_time_inds.long()]   
+        return corrupted_batch.unsqueeze(1), batch_birth_rates, sample_time_inds
 
 def train_model(config, training_loader, validation_loader, schedule):
     seq_length = 20
     score_model = ConvNet(seq_length, schedule['max_state'])
-    score_fun = ConvNet(seq_length, schedule['max_state'])
 
     # setup model based on config
     # score_model = mutils.create_model(config)
@@ -228,11 +227,15 @@ def train_epoch(model, epoch_index, tb_writer, optimizer, training_loader, sched
     return last_loss
 
 def loss_fn(model, data, schedule): 
-    data, data_dX, sample_times = noisify_data(data, **schedule)
-    y = model(data.float(), sample_times)
+    data, data_dX, sample_time_inds = noisify_data(data, **schedule)
+    times = schedule['observation_times'][sample_time_inds]
+    times_ = schedule['observation_times'][sample_time_inds-1]
+    y = model(data.float(), times_)
     # loss = torch.mean(schedule['weights'][sample_times.long()]*(y - data_dX*torch.log(y)))
+    
     eps = 1e-4 
-    loss = torch.mean(1*(y - data_dX*torch.log(y+eps)))
+    weights = torch.exp(-times_) - torch.exp(-times)
+    loss = torch.mean(weights*(y - data_dX*torch.log(y+eps)))
     return loss
 
 def retokenize(unique, data):
